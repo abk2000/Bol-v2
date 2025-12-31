@@ -1066,3 +1066,4 @@ function creating_offer($post_id)
     update_post_meta($post_id, '_bol_offer_response', wp_json_encode($result));
 
 }
+ 
