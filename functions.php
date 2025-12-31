@@ -641,27 +641,29 @@ function render_extra_product_details_box($post)
     $price = $product->get_regular_price();
     $stock = $product->get_stock_quantity();
 
-    $show_success = get_transient('bol_offer_success_flag_' . $post->ID);
-
-    if ($show_success) {
-        echo '<div style="padding:10px; margin-bottom:15px; background:#d1ffd1; border-left:5px solid #32a852;">
-                <strong>Offer created on BOL.</strong>
+    $success_msg = get_transient('bol_offer_success_msg_' . $post->ID);
+    if ($success_msg) {
+        echo '<div style="padding:10px; margin-bottom:15px; background:#d1ffd1; border-left:5px solid #32a852; color: #0e5a24;">
+                <strong>' . esc_html($success_msg) . '</strong>
               </div>';
-
-        delete_transient('bol_offer_success_flag_' . $post->ID);
+        delete_transient('bol_offer_success_msg_' . $post->ID);
     }
-    if (get_transient('bol_offer_error_flag_' . $post->ID)) {
+
+    if (empty(get_post_meta($post->ID, '_bol_offer_id', true)) && get_transient('bol_offer_error_flag_' . $post->ID)) {
         echo '<div style="padding:10px; margin-bottom:15px; background:#fbeaea; border-left:5px solid #d63638; color: #941c1e;">
-                <strong>Offer not created in BOL. Please try again and fill the form properly.</strong>
-              </div>';
+            <strong>Offer not created in BOL. Please try again and fill the form properly.</strong>
+          </div>';
         delete_transient('bol_offer_error_flag_' . $post->ID);
     }
+    $bol_offer_id = get_post_meta($post->ID, '_bol_offer_id', true);
     ?>
 
     <table class="form-table">
+
+        <input type="hidden" id="bol_offer_exists" value="<?php echo !empty($bol_offer_id) ? 'yes' : 'no'; ?>">
         <?php wp_nonce_field('bol_offer_nonce_action', 'bol_offer_nonce'); ?>
 
-      
+        <!-- EAN -->
         <tr>
             <th><label>EAN</label></th>
             <td>
@@ -670,11 +672,11 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-       
+        <!-- Condition category -->
         <tr>
             <th><label>Condition Category</label></th>
             <td>
-                <select name="condition_category" class="regular-text" required>
+                <select name="condition_category" class="regular-text">
                     <option value="">Select category</option>
                     <option value="NEW">NEW</option>
                     <option value="SECONDHAND">SECONDHAND</option>
@@ -683,7 +685,7 @@ function render_extra_product_details_box($post)
                 <span class="error-msg"></span>
             </td>
         </tr>
-        
+        <!-- Condition state -->
         <tr id="state">
             <th><label>Condition State</label></th>
             <td>
@@ -697,7 +699,7 @@ function render_extra_product_details_box($post)
                 <span class="error-msg"></span>
             </td>
         </tr>
-        
+        <!-- Condition grade -->
         <tr id="grade">
             <th><label>Condition Grade</label></th>
             <td>
@@ -712,7 +714,7 @@ function render_extra_product_details_box($post)
         </tr>
         <input type="hidden" name="margin" value="false">
 
-        
+        <!-- Stock -->
         <tr>
             <th><label>Stock Amount</label></th>
             <td>
@@ -721,7 +723,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-        
+        <!-- Price -->
         <tr>
             <th><label>Unit Price (€)</label></th>
             <td>
@@ -744,7 +746,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-       
+        <!-- Delivery: minimum days -->
         <tr>
             <th><label>Minimum Days to Customer</label></th>
             <td>
@@ -753,7 +755,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-       
+        <!-- Delivery: maximum days -->
         <tr>
             <th><label>Maximum Days to Customer</label></th>
             <td>
@@ -762,7 +764,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-       
+        <!-- Ultimate order time -->
         <tr id="order">
             <th><label>Ultimate Order Time</label></th>
             <td>
@@ -789,7 +791,9 @@ function render_extra_product_details_box($post)
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('#post'); 
+            const form = document.querySelector('#post');
+            const offerExists = document.getElementById('bol_offer_exists').value === 'yes';
+            const bolInputs = document.querySelectorAll('.form-table input[type="text"], .form-table select');
             const category = document.querySelector('select[name="condition_category"]');
             const stateRow = document.getElementById('state');
             const gradeRow = document.getElementById('grade');
@@ -798,7 +802,6 @@ function render_extra_product_details_box($post)
             const orderRow = document.getElementById('order');
             const orderTimeField = document.querySelector('select[name="ultimate_order_time"]');
 
-           
             function showError(input, message) {
                 const td = input.closest('td');
                 const errorSpan = td.querySelector('.error-msg');
@@ -813,9 +816,11 @@ function render_extra_product_details_box($post)
                 input.style.border = '';
             }
 
-           
             function validateInput(input) {
-                
+                if (offerExists) {
+                    clearError(input);
+                    return true;
+                }
                 const row = input.closest('tr');
                 if (row && row.style.display === 'none') {
                     clearError(input);
@@ -825,22 +830,18 @@ function render_extra_product_details_box($post)
                 if (!input.value || input.value.trim() === '') {
                     showError(input, 'This field is required.');
                     return false;
-                } else {
-                    clearError(input);
-                    return true;
                 }
+                clearError(input);
+                return true;
             }
 
-            
             const inputs = document.querySelectorAll('.form-table input[type="text"], .form-table select');
 
             inputs.forEach(input => {
-                
                 input.addEventListener('blur', function() {
                     validateInput(this);
                 });
 
-               
                 input.addEventListener('input', function() {
                     if (this.value.trim() !== '') {
                         clearError(this);
@@ -848,7 +849,6 @@ function render_extra_product_details_box($post)
                 });
             });
 
-          
             function toggleConditionRows() {
                 const value = category.value;
                 stateRow.style.display = 'none';
@@ -874,8 +874,9 @@ function render_extra_product_details_box($post)
             toggleConditionRows();
             toggleUltimateOrderTime();
 
-         
             form.addEventListener('submit', function(e) {
+                if (offerExists) return;
+
                 let isValid = true;
                 inputs.forEach(input => {
                     if (!validateInput(input)) {
@@ -885,7 +886,6 @@ function render_extra_product_details_box($post)
 
                 if (!isValid) {
                     e.preventDefault();
-                
                     const firstError = document.querySelector('.error-msg:not(:empty)');
                     if (firstError) firstError.scrollIntoView({
                         behavior: 'smooth',
@@ -926,7 +926,7 @@ function bol_create_offer(array $offerData, string $jwt)
         CURLOPT_URL => 'https://api.bol.com/retailer/offers',
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode($offerData, JSON_UNESCAPED_SLASHES),
+        CURLOPT_POSTFIELDS => json_encode($offerData),
         CURLOPT_HTTPHEADER => array(
             "Authorization: Bearer {$jwt}",
             "Accept-Language: nl",
@@ -945,24 +945,42 @@ function bol_update_offer_price($offer_id, $update_data, $jwt)
     curl_setopt_array($curl, array(
         CURLOPT_URL => "https://api.bol.com/retailer/offers/$offer_id",
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CUSTOMREQUEST => 'PUT',
-        CURLOPT_POSTFIELDS => json_encode($update_data, JSON_UNESCAPED_SLASHES),
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 0,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'PATCH',
+        CURLOPT_POSTFIELDS => json_encode($update_data),
         CURLOPT_HTTPHEADER => array(
-            "Authorization: Bearer {$jwt}",
-            "Accept-Language: nl",
-            "Content-Type: application/vnd.retailer.v11-beta+json",
-            "Accept: application/vnd.retailer.v11-beta+json",
+            "Authorization: Bearer $jwt",
+            'Accept-Language: nl',
+            'Content-Type: application/vnd.retailer.v11-beta+json',
+            'Accept: application/vnd.retailer.v11-beta+json',
         ),
     ));
+
     $response = curl_exec($curl);
-    if (!$response) return ["error" => curl_error($curl)];
-    return json_decode($response, true);
+    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    $curl_error = curl_error($curl);
+
+    return [
+        "http_code" => $http_code,
+        "raw_body"  => $response,
+        "curl_err"  => $curl_error,
+        "sent_json" => $update_data
+    ];
 }
 
 /** Creating offer */
 add_action('save_post', 'creating_offer', 10, 1);
 function creating_offer($post_id)
 {
+    $existing_id = get_post_meta($post_id, '_bol_offer_id', true);
+    if (!empty($existing_id)) {
+        return;
+    }
+
     if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
     if (wp_is_post_revision($post_id)) return;
 
@@ -981,12 +999,10 @@ function creating_offer($post_id)
         'category' => $_POST['condition_category'],
     ];
 
-
     if ($condition['category'] == 'SECONDHAND' && !empty($_POST['condition_state'])) {
         $condition['state'] = $_POST['condition_state'];
     }
 
-  
     if ($condition['category'] === 'REFURBISHED' && !empty($_POST['condition_grade'])) {
         $condition['grade']  = $_POST['condition_grade'];
         $condition['margin'] = false;
@@ -1055,15 +1071,79 @@ function creating_offer($post_id)
     if (!empty($result['offerId'])) {
         update_post_meta($post_id, '_bol_offer_id', $result['offerId']);
 
-        set_transient('bol_offer_success_flag_' . $post_id, true, 60);
+        // set_transient('bol_offer_success_flag_' . $post_id, true, 60);
+        set_transient('bol_offer_success_msg_' . $post_id, 'Offer created successfully on BOL!', 60);
     } else {
         set_transient('bol_offer_error_flag_' . $post_id, true, 60);
-
         delete_transient('bol_offer_success_flag_' . $post_id);
     }
 
     update_post_meta($post_id, '_bol_offer_timestamp', current_time('mysql'));
     update_post_meta($post_id, '_bol_offer_response', wp_json_encode($result));
 
+    // set_transient('bol_offer_notice', 'Offer created successfully on BOL!', 30);
 }
- 
+
+/** Update Offer */
+add_action('save_post', 'handle_bol_offer_sync', 20, 1);
+function handle_bol_offer_sync($post_id)
+{
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) return;
+    if (!current_user_can('edit_post', $post_id)) return;
+    if (get_post_type($post_id) !== 'product') return;
+
+    $bol_offer_id = get_post_meta($post_id, '_bol_offer_id', true);
+
+    if (!$bol_offer_id) return;
+
+    $product = wc_get_product($post_id);
+    $price   = (float) $product->get_regular_price();
+    $stock   = (int) $product->get_stock_quantity();
+
+    $update_data = [
+        "stock" => [
+            "amount" => $stock,
+            "managedByRetailer" => true
+        ],
+        "pricing" => [
+            "bundlePrices" => [
+                [
+                    "quantity" => 1,
+                    "unitPrice" => $price
+                ]
+            ]
+        ]
+    ];
+
+    $credentials = '486f3de5-f6cf-4edc-8339-03e52462aea4:lajoSX9Y6KUR?Jf5IT!FwbexNsx?(pSZzAG2mJFxKzfYie@KhK!9qQ?HDgRb?kGh';
+    $base64_encoded = base64_encode($credentials);
+
+    $tokenResponse = bol_get_token($base64_encoded);
+    $jwt = $tokenResponse['access_token'] ?? null;
+
+    if (!$jwt) {
+        set_transient('bol_offer_notice', 'Failed to get token from BOL.', 30);
+        return;
+    }
+
+    $result = bol_update_offer_price($bol_offer_id, $update_data, $jwt);
+    update_post_meta($post_id, '_bol_offer_update_response', wp_json_encode($result));
+    if (isset($result['status']) && intval($result['status']) == 401) {
+        $tokenResponse = bol_get_token($base64_encoded);
+        $jwt = $tokenResponse['access_token'] ?? null;
+
+        if ($jwt) {
+            $result = bol_update_offer_price($bol_offer_id, $update_data, $jwt);
+        }
+    }
+
+    $debug_info = wp_json_encode($result);
+
+    if ($result['http_code'] === 204 || $result['http_code'] === 202) {
+        set_transient('bol_offer_success_msg_' . $post_id, 'Offer updated successfully!', 60);
+        delete_transient('bol_offer_error_flag_' . $post_id);
+    } else {
+        set_transient('bol_offer_error_flag_' . $post_id, $debug_info, 60);
+        delete_transient('bol_offer_success_msg_' . $post_id);
+    }
+}
