@@ -661,7 +661,7 @@ function render_extra_product_details_box($post)
     <table class="form-table">
         <?php wp_nonce_field('bol_offer_nonce_action', 'bol_offer_nonce'); ?>
 
-        <!-- EAN -->
+      
         <tr>
             <th><label>EAN</label></th>
             <td>
@@ -670,7 +670,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-        <!-- Condition category -->
+       
         <tr>
             <th><label>Condition Category</label></th>
             <td>
@@ -683,7 +683,7 @@ function render_extra_product_details_box($post)
                 <span class="error-msg"></span>
             </td>
         </tr>
-        <!-- Condition state -->
+        
         <tr id="state">
             <th><label>Condition State</label></th>
             <td>
@@ -697,7 +697,7 @@ function render_extra_product_details_box($post)
                 <span class="error-msg"></span>
             </td>
         </tr>
-        <!-- Condition grade -->
+        
         <tr id="grade">
             <th><label>Condition Grade</label></th>
             <td>
@@ -712,7 +712,7 @@ function render_extra_product_details_box($post)
         </tr>
         <input type="hidden" name="margin" value="false">
 
-        <!-- Stock -->
+        
         <tr>
             <th><label>Stock Amount</label></th>
             <td>
@@ -721,7 +721,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-        <!-- Price -->
+        
         <tr>
             <th><label>Unit Price (€)</label></th>
             <td>
@@ -744,7 +744,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-        <!-- Delivery: minimum days -->
+       
         <tr>
             <th><label>Minimum Days to Customer</label></th>
             <td>
@@ -753,7 +753,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-        <!-- Delivery: maximum days -->
+       
         <tr>
             <th><label>Maximum Days to Customer</label></th>
             <td>
@@ -762,7 +762,7 @@ function render_extra_product_details_box($post)
             </td>
         </tr>
 
-        <!-- Ultimate order time -->
+       
         <tr id="order">
             <th><label>Ultimate Order Time</label></th>
             <td>
@@ -789,7 +789,7 @@ function render_extra_product_details_box($post)
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.querySelector('#post'); // Standard WordPress post form
+            const form = document.querySelector('#post'); 
             const category = document.querySelector('select[name="condition_category"]');
             const stateRow = document.getElementById('state');
             const gradeRow = document.getElementById('grade');
@@ -798,7 +798,7 @@ function render_extra_product_details_box($post)
             const orderRow = document.getElementById('order');
             const orderTimeField = document.querySelector('select[name="ultimate_order_time"]');
 
-            // --- Error Helpers ---
+           
             function showError(input, message) {
                 const td = input.closest('td');
                 const errorSpan = td.querySelector('.error-msg');
@@ -813,9 +813,9 @@ function render_extra_product_details_box($post)
                 input.style.border = '';
             }
 
-            // --- Validation Logic ---
+           
             function validateInput(input) {
-                // Skip validation if the row is hidden
+                
                 const row = input.closest('tr');
                 if (row && row.style.display === 'none') {
                     clearError(input);
@@ -831,17 +831,16 @@ function render_extra_product_details_box($post)
                 }
             }
 
-            // --- Real-Time Listeners ---
-            // Select all inputs inside your specific table
+            
             const inputs = document.querySelectorAll('.form-table input[type="text"], .form-table select');
 
             inputs.forEach(input => {
-                // When user leaves a field (Real-time trigger)
+                
                 input.addEventListener('blur', function() {
                     validateInput(this);
                 });
 
-                // Clear error immediately when they start typing again
+               
                 input.addEventListener('input', function() {
                     if (this.value.trim() !== '') {
                         clearError(this);
@@ -849,7 +848,7 @@ function render_extra_product_details_box($post)
                 });
             });
 
-            // --- Keep your existing UI Logic ---
+          
             function toggleConditionRows() {
                 const value = category.value;
                 stateRow.style.display = 'none';
@@ -875,7 +874,7 @@ function render_extra_product_details_box($post)
             toggleConditionRows();
             toggleUltimateOrderTime();
 
-            // --- Final Prevent Submit if Errors Exist ---
+         
             form.addEventListener('submit', function(e) {
                 let isValid = true;
                 inputs.forEach(input => {
@@ -886,7 +885,7 @@ function render_extra_product_details_box($post)
 
                 if (!isValid) {
                     e.preventDefault();
-                    // Optional: Scroll to the first error
+                
                     const firstError = document.querySelector('.error-msg:not(:empty)');
                     if (firstError) firstError.scrollIntoView({
                         behavior: 'smooth',
@@ -982,12 +981,12 @@ function creating_offer($post_id)
         'category' => $_POST['condition_category'],
     ];
 
-    // SECONDHAND → state
+
     if ($condition['category'] == 'SECONDHAND' && !empty($_POST['condition_state'])) {
         $condition['state'] = $_POST['condition_state'];
     }
 
-    // REFURBISHED → grade + margin
+  
     if ($condition['category'] === 'REFURBISHED' && !empty($_POST['condition_grade'])) {
         $condition['grade']  = $_POST['condition_grade'];
         $condition['margin'] = false;
@@ -1066,5 +1065,4 @@ function creating_offer($post_id)
     update_post_meta($post_id, '_bol_offer_timestamp', current_time('mysql'));
     update_post_meta($post_id, '_bol_offer_response', wp_json_encode($result));
 
-    // set_transient('bol_offer_notice', 'Offer created successfully on BOL!', 30);
 }
